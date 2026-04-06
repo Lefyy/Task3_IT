@@ -68,6 +68,7 @@ public class Quadcopter
                 return;
             }
 
+            _flightSessionId++;
             State = DroneState.Flying;
         }
 
@@ -124,15 +125,6 @@ public class Quadcopter
         {
             return;
         }
-
-        if (snapshot.State == DroneState.Idle && _random.NextDouble() <= GpsFailureProbability)
-        {
-            var sessionId = NextFlightSessionId();
-            TriggerEmergencyLanding(sessionId);
-            return;
-        }
-
-        NextFlightSessionId();
         StartFlight();
     }
 
@@ -148,6 +140,12 @@ public class Quadcopter
             {
                 while (!token.IsCancellationRequested)
                 {
+                    if (TryTriggerGpsFailureDuringFlight())
+                    {
+                        await Task.Delay(40, token);
+                        continue;
+                    }
+
                     UpdatePosition();
                     await Task.Delay(40, token);
                 }
@@ -187,13 +185,28 @@ public class Quadcopter
         PositionChanged?.Invoke(this);
     }
 
-    private int NextFlightSessionId()
+    private bool TryTriggerGpsFailureDuringFlight()
     {
+        var shouldTriggerEmergencyLanding = false;
+        var sessionId = 0;
+
         lock (_sync)
         {
-            _flightSessionId++;
-            return _flightSessionId;
+            if (State == DroneState.Flying && GpsEnabled && _random.NextDouble() <= GpsFailureProbability)
+            {
+                shouldTriggerEmergencyLanding = true;
+                sessionId = _flightSessionId;
+            }
+
         }
+
+        if (!shouldTriggerEmergencyLanding)
+        {
+            return false;
+        }
+
+        TriggerEmergencyLanding(sessionId);
+        return true;
     }
 
     private void TriggerEmergencyLanding(int sessionId)
