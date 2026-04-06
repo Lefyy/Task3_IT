@@ -23,22 +23,23 @@
         <Grid Grid.Row="1" RowDefinitions="3*,2*" Margin="0,12,0,0">
             <Border BorderBrush="Gray" BorderThickness="1" Background="#101A2C" CornerRadius="4">
                 <Canvas Width="780" Height="440" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <ItemsControl ItemsSource="{Binding Drones}">
+                    <ItemsControl Width="780" Height="440" ItemsSource="{Binding Drones}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <Canvas />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
-
+                        <ItemsControl.Styles>
+                            <Style Selector="ContentPresenter">
+                                <Setter Property="Canvas.Left" Value="{ReflectionBinding X}" />
+                                <Setter Property="Canvas.Top" Value="{ReflectionBinding Y}" />
+                            </Style>
+                        </ItemsControl.Styles>   
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:DroneViewModel">
                                 <Ellipse Width="20"
                                          Height="20"
-                                         Fill="{Binding Brush}">
-                                    <Ellipse.RenderTransform>
-                                        <TranslateTransform X="{Binding X}" Y="{Binding Y}" />
-                                    </Ellipse.RenderTransform>
-                                </Ellipse>
+                                         Fill="{Binding Brush}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
