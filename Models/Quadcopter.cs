@@ -9,6 +9,8 @@ public class Quadcopter
     private readonly Random _random;
     private readonly object _sync = new();
     private CancellationTokenSource? _loopCts;
+    private CancellationTokenSource? _emergencyCts;
+    private int _flightSessionId;
 
     public Quadcopter(int id, double initialX, double initialY, double areaWidth, double areaHeight, Random random)
     {
@@ -75,9 +77,11 @@ public class Quadcopter
     public void StopSimulation()
     {
         _loopCts?.Cancel();
+        _emergencyCts?.Cancel();
         lock (_sync)
         {
             State = DroneState.Idle;
+            _flightSessionId++;
         }
     }
 
@@ -115,12 +119,20 @@ public class Quadcopter
             return;
         }
 
-        if (_random.NextDouble() <= GpsFailureProbability)
+        var snapshot = GetSnapshot();
+        if (snapshot.State is DroneState.Flying or DroneState.Landing or DroneState.Repairing || !snapshot.GpsEnabled)
         {
-            TriggerEmergencyLanding();
             return;
         }
 
+        if (snapshot.State == DroneState.Idle && _random.NextDouble() <= GpsFailureProbability)
+        {
+            var sessionId = NextFlightSessionId();
+            TriggerEmergencyLanding(sessionId);
+            return;
+        }
+
+        NextFlightSessionId();
         StartFlight();
     }
 
@@ -175,9 +187,21 @@ public class Quadcopter
         PositionChanged?.Invoke(this);
     }
 
-    private void TriggerEmergencyLanding()
+    private int NextFlightSessionId()
+    {
+        lock (_sync)
+        {
+            _flightSessionId++;
+            return _flightSessionId;
+        }
+    }
+
+    private void TriggerEmergencyLanding(int sessionId)
     {
         _loopCts?.Cancel();
+        _emergencyCts?.Cancel();
+        _emergencyCts = new CancellationTokenSource();
+        var emergencyToken = _emergencyCts.Token;
 
         lock (_sync)
         {
@@ -192,18 +216,30 @@ public class Quadcopter
 
         _ = Task.Run(async () =>
         {
-            lock (_sync)
+            try
             {
-                State = DroneState.Landing;
-            }
+                lock (_sync)
+                {
+                    State = DroneState.Landing;
+                }
 
-            await Task.Delay(1000);
-            lock (_sync)
+                await Task.Delay(1000, emergencyToken);
+                lock (_sync)
+                {
+                    if (_flightSessionId != sessionId)
+                    {
+                        return;
+                    }
+
+                    State = DroneState.Idle;
+                }
+
+                Landed?.Invoke(this);
+            }
+            catch (TaskCanceledException)
             {
-                State = DroneState.Idle;
+               // ignored
             }
-
-            Landed?.Invoke(this);
         });
     }
 }
