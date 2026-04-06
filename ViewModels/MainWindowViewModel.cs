@@ -25,6 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
     {
         AddDroneCommand = new RelayCommand(AddDrone);
+        RemoveDroneCommand = new RelayCommand<DroneViewModel>(RemoveDrone);
 
         _timer = new DispatcherTimer
         {
@@ -45,6 +46,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<DroneViewModel> Drones { get; } = new();
 
     public RelayCommand AddDroneCommand { get; }
+    public RelayCommand<DroneViewModel> RemoveDroneCommand { get; }
 
     public void UpdateSimulationAreaSize(double width, double height)
     {
@@ -113,6 +115,24 @@ public partial class MainWindowViewModel : ViewModelBase
                            && !type.IsAbstract);
 
         return (IMechanic)Activator.CreateInstance(mechanicType)!;
+    }
+
+    private void RemoveDrone(DroneViewModel? drone)
+    {
+        if (drone is null)
+        {
+            return;
+        }
+
+        drone.Shutdown();
+
+        Drones.Remove(drone);
+
+        var quadcopter = _quadcopters.FirstOrDefault(q => q.Id == drone.DroneId);
+        if (quadcopter is not null)
+        {
+            _quadcopters.Remove(quadcopter);
+        }
     }
 
 }

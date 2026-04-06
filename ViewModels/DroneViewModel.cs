@@ -13,6 +13,10 @@ public partial class DroneViewModel : ViewModelBase
     private readonly Quadcopter _quadcopter;
     private readonly Operator _operator;
     private readonly IMechanic _mechanic;
+    private readonly Mechanic? _concreteMechanic;
+    private readonly RepairMessageHandler _repairMessageHandler;
+    private CancellationTokenSource? _repairCts;
+    private bool _isShutdown;
     private DateTime _lastEventAt = DateTime.MinValue;
 
     [ObservableProperty]
@@ -38,6 +42,7 @@ public partial class DroneViewModel : ViewModelBase
         _quadcopter = quadcopter;
         _operator = @operator;
         _mechanic = mechanic;
+        _repairMessageHandler = OnRepairMessagePublished;
 
         _quadcopter.GpsDisabled += OnGpsDisabled;
         _quadcopter.EmergencyLandingStarted += OnEmergencyLandingStarted;
@@ -45,13 +50,15 @@ public partial class DroneViewModel : ViewModelBase
 
         if (_mechanic is Mechanic concreteMechanic)
         {
-            concreteMechanic.RepairMessagePublished += message => SetEventText(message);
+            _concreteMechanic = concreteMechanic;
+            _concreteMechanic.RepairMessagePublished += _repairMessageHandler;
         }
 
         SyncFromModel();
     }
 
     public string Title => $"Дрон #{_quadcopter.Id}";
+    public int DroneId => _quadcopter.Id;
 
     public void Start()
     {
@@ -92,24 +99,84 @@ public partial class DroneViewModel : ViewModelBase
         SyncFromModel();
     }
 
+    public void Shutdown()
+    {
+        if (_isShutdown)
+        {
+            return;
+        }
+
+        _isShutdown = true;
+        _repairCts?.Cancel();
+        _quadcopter.StopSimulation();
+
+        _quadcopter.GpsDisabled -= OnGpsDisabled;
+        _quadcopter.EmergencyLandingStarted -= OnEmergencyLandingStarted;
+        _quadcopter.Landed -= OnLanded;
+        if (_concreteMechanic is not null)
+        {
+            _concreteMechanic.RepairMessagePublished -= _repairMessageHandler;
+        }
+    }
 
     private void OnGpsDisabled(Quadcopter quadcopter)
     {
+        if (_isShutdown)
+        {
+            return;
+        }
+
         Brush = Brushes.OrangeRed;
         SetEventText($"{Title}: GPS отключился (вероятностное событие).");
     }
 
     private void OnEmergencyLandingStarted(Quadcopter quadcopter)
     {
+        if (_isShutdown)
+        {
+            return;
+        }
+
         SetEventText($"{Title}: оператор инициировал аварийную посадку.");
     }
 
     private async void OnLanded(Quadcopter quadcopter)
     {
+        if (_isShutdown)
+        {
+            return;
+        }
+
         SetEventText($"{Title}: сел, ожидает механика.");
-        await _mechanic.RepairAsync(_quadcopter, CancellationToken.None);
+        _repairCts?.Cancel();
+        _repairCts = new CancellationTokenSource();
+
+        try
+        {
+            await _mechanic.RepairAsync(_quadcopter, _repairCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_isShutdown)
+        {
+            return;
+        }
+
         SetEventText($"{Title}: ремонт завершен, запускаем повторно.");
         Start();
+    }
+
+    private void OnRepairMessagePublished(string message)
+    {
+        if (_isShutdown)
+        {
+            return;
+        }
+
+        SetEventText(message);
     }
 
     private void SetEventText(string text)

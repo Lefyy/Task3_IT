@@ -56,7 +56,13 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:DroneViewModel">
                                 <StackPanel Margin="0,0,0,6">
-                                    <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Title}" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1"
+                                                Content="✖"
+                                                Command="{ReflectionBinding DataContext.RemoveDroneCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding .}" />
+                                    </Grid>
                                     <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="14" />
                                 </StackPanel>
                             </DataTemplate>
