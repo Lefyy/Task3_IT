@@ -6,6 +6,8 @@ namespace Task3.Models;
 
 public class Quadcopter
 {
+    private const int FlightTickDelayMs = 40;
+    private const double DefaultGpsFailureProbabilityPerSecond = 0.3;
     private readonly Random _random;
     private readonly object _sync = new();
     private CancellationTokenSource? _loopCts;
@@ -20,10 +22,6 @@ public class Quadcopter
         AreaWidth = areaWidth;
         AreaHeight = areaHeight;
         _random = random;
-        VelocityX = _random.NextDouble() * 2 + 1;
-        VelocityY = _random.NextDouble() * 2 + 1;
-        GpsFailureProbability = 0.3;
-        State = DroneState.Idle;
     }
 
     public int Id { get; }
@@ -42,9 +40,9 @@ public class Quadcopter
 
     public bool GpsEnabled { get; private set; } = true;
 
-    public double GpsFailureProbability { get; }
+    public double GpsFailureProbabilityPerSecond { get; } = DefaultGpsFailureProbabilityPerSecond;
 
-    public DroneState State { get; private set; }
+    public DroneState State { get; private set; } = DroneState.Idle;
 
     public event Action<Quadcopter>? PositionChanged;
 
@@ -68,6 +66,7 @@ public class Quadcopter
                 return;
             }
 
+            SetRandomVelocity();
             _flightSessionId++;
             State = DroneState.Flying;
         }
@@ -108,9 +107,14 @@ public class Quadcopter
         lock (_sync)
         {
             GpsEnabled = true;
-            VelocityX = _random.NextDouble() * 2 + 1;
-            VelocityY = _random.NextDouble() * 2 + 1;
+            SetRandomVelocity();
         }
+    }
+
+    private void SetRandomVelocity()
+    {
+        VelocityX = _random.NextDouble() * 2 + 1;
+        VelocityY = _random.NextDouble() * 2 + 1;
     }
 
     private void OnControllerTurnedOn(Quadcopter quadcopter)
@@ -142,12 +146,12 @@ public class Quadcopter
                 {
                     if (TryTriggerGpsFailureDuringFlight())
                     {
-                        await Task.Delay(40, token);
+                        await Task.Delay(FlightTickDelayMs, token);
                         continue;
                     }
 
                     UpdatePosition();
-                    await Task.Delay(40, token);
+                    await Task.Delay(FlightTickDelayMs, token);
                 }
             }
             catch (TaskCanceledException)
@@ -192,7 +196,10 @@ public class Quadcopter
 
         lock (_sync)
         {
-            if (State == DroneState.Flying && GpsEnabled && _random.NextDouble() <= GpsFailureProbability)
+            var dtSeconds = FlightTickDelayMs / 1000d;
+            var gpsFailureProbabilityPerTick = 1 - Math.Pow(1 - GpsFailureProbabilityPerSecond, dtSeconds);
+
+            if (State == DroneState.Flying && GpsEnabled && _random.NextDouble() <= gpsFailureProbabilityPerTick)
             {
                 shouldTriggerEmergencyLanding = true;
                 sessionId = _flightSessionId;
