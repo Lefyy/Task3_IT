@@ -13,10 +13,10 @@ public class Mechanic : IMechanic
     public async Task RepairAsync(Quadcopter quadcopter, CancellationToken cancellationToken)
     {
         RepairMessagePublished?.Invoke($"Механик начал ремонт дрона #{quadcopter.Id}.");
-        quadcopter.State = DroneState.Repairing;
+        quadcopter.SetState(DroneState.Repairing);
         await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         quadcopter.RestoreGps();
-        quadcopter.State = DroneState.Idle;
+        quadcopter.SetState(DroneState.Idle);
         RepairMessagePublished?.Invoke($"Дрон #{quadcopter.Id} отремонтирован, GPS восстановлен.");
     }
 }

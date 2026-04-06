@@ -68,7 +68,12 @@ public partial class DroneViewModel : ViewModelBase
         };
     }
 
-    public void Stop() => _quadcopter.StopSimulation();
+    public void Stop()
+    {
+        _quadcopter.StopSimulation();
+        SyncFromModel();
+    }
+
 
     private void OnGpsDisabled(Quadcopter quadcopter)
     {
@@ -85,7 +90,7 @@ public partial class DroneViewModel : ViewModelBase
     {
         Status = $"{Title}: сел, ожидает механика.";
         await _mechanic.RepairAsync(_quadcopter, CancellationToken.None);
-        Status = $"{Title}: ремонт завершен, повторный взлёт.";
-        _operator.TurnOnController(_quadcopter);
+        Status = $"{Title}: ремонт завершен, готов к запуску.";
+        SyncFromModel();
     }
 }

@@ -34,9 +34,11 @@
                             <DataTemplate x:DataType="vm:DroneViewModel">
                                 <Ellipse Width="20"
                                          Height="20"
-                                         Fill="{Binding Brush}"
-                                         Canvas.Left="{Binding X}"
-                                         Canvas.Top="{Binding Y}" />
+                                         Fill="{Binding Brush}">
+                                    <Ellipse.RenderTransform>
+                                        <TranslateTransform X="{Binding X}" Y="{Binding Y}" />
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

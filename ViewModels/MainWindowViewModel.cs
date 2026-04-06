@@ -64,7 +64,6 @@ public partial class MainWindowViewModel : ViewModelBase
         var droneVm = new DroneViewModel(quadcopter, @operator, mechanic);
 
         Drones.Add(droneVm);
-        droneVm.TurnOnController();
     }
 
     private void StartAll()

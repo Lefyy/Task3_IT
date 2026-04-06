@@ -9,6 +9,5 @@ public class Operator
     public void TurnOnController(Quadcopter quadcopter)
     {
         ControllerTurnedOn?.Invoke(quadcopter);
-        quadcopter.StartFlight();
     }
 }

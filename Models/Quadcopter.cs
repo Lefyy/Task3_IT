@@ -42,7 +42,7 @@ public class Quadcopter
 
     public double GpsFailureProbability { get; }
 
-    public DroneState State { get; set; }
+    public DroneState State { get; private set; }
 
     public event Action<Quadcopter>? PositionChanged;
 
@@ -59,18 +59,35 @@ public class Quadcopter
 
     public void StartFlight()
     {
-        if (State is DroneState.Flying or DroneState.Landing or DroneState.Repairing)
+        lock (_sync)
         {
-            return;
+            if (State is DroneState.Flying or DroneState.Landing or DroneState.Repairing || !GpsEnabled)
+            {
+                return;
+            }
+
+            State = DroneState.Flying;
         }
 
-        State = DroneState.Flying;
         StartLoop();
     }
 
     public void StopSimulation()
     {
         _loopCts?.Cancel();
+        lock (_sync)
+        {
+            State = DroneState.Idle;
+        }
+    }
+
+    public void SetState(DroneState state)
+    {
+        lock (_sync)
+        {
+            State = state;
+        }
+
     }
 
     public (double X, double Y, DroneState State, bool GpsEnabled) GetSnapshot()
@@ -101,7 +118,10 @@ public class Quadcopter
         if (_random.NextDouble() <= GpsFailureProbability)
         {
             TriggerEmergencyLanding();
+            return;
         }
+
+        StartFlight();
     }
 
     private void StartLoop()
@@ -112,10 +132,17 @@ public class Quadcopter
 
         _ = Task.Run(async () =>
         {
-            while (!token.IsCancellationRequested)
+            try
             {
-                UpdatePosition();
-                await Task.Delay(40, token);
+                while (!token.IsCancellationRequested)
+                {
+                    UpdatePosition();
+                    await Task.Delay(40, token);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // ignored
             }
         }, token);
     }
@@ -150,6 +177,8 @@ public class Quadcopter
 
     private void TriggerEmergencyLanding()
     {
+        _loopCts?.Cancel();
+
         lock (_sync)
         {
             GpsEnabled = false;
