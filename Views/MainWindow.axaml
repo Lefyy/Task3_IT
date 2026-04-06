@@ -20,8 +20,13 @@
 
         <Grid Grid.Row="1" RowDefinitions="3*,2*" Margin="0,12,0,0">
             <Border BorderBrush="Gray" BorderThickness="1" Background="#101A2C" CornerRadius="4">
-                <Canvas Width="780" Height="440" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <ItemsControl Width="780" Height="440" ItemsSource="{Binding Drones}">
+                <Canvas x:Name="SimulationCanvas"
+                        MinWidth="320"
+                        MinHeight="200"
+                        SizeChanged="SimulationCanvas_OnSizeChanged">
+                    <ItemsControl Width="{Binding Bounds.Width, ElementName=SimulationCanvas}"
+                                  Height="{Binding Bounds.Height, ElementName=SimulationCanvas}"
+                                  ItemsSource="{Binding Drones}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <Canvas />
@@ -32,7 +37,7 @@
                                 <Setter Property="Canvas.Left" Value="{ReflectionBinding X}" />
                                 <Setter Property="Canvas.Top" Value="{ReflectionBinding Y}" />
                             </Style>
-                        </ItemsControl.Styles>   
+                        </ItemsControl.Styles>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:DroneViewModel">
                                 <Ellipse Width="20"

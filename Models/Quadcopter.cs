@@ -7,7 +7,8 @@ namespace Task3.Models;
 public class Quadcopter
 {
     private const int FlightTickDelayMs = 40;
-    private const double DefaultGpsFailureProbabilityPerSecond = 0.03;
+    private const double DefaultGpsFailureProbabilityPerSecond = 0.05;
+    private const double DroneVisualSize = 20;
     private readonly Random _random;
     private readonly object _sync = new();
     private CancellationTokenSource? _loopCts;
@@ -34,9 +35,9 @@ public class Quadcopter
 
     public double VelocityY { get; private set; }
 
-    public double AreaWidth { get; }
+    public double AreaWidth { get; private set; }
 
-    public double AreaHeight { get; }
+    public double AreaHeight { get; private set; }
 
     public bool GpsEnabled { get; private set; } = true;
 
@@ -100,6 +101,24 @@ public class Quadcopter
         {
             return (X, Y, State, GpsEnabled);
         }
+    }
+
+    public void SetAreaSize(double width, double height)
+    {
+        lock (_sync)
+        {
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            AreaWidth = width;
+            AreaHeight = height;
+            X = Math.Clamp(X, 0, Math.Max(0, AreaWidth - DroneVisualSize));
+            Y = Math.Clamp(Y, 0, Math.Max(0, AreaHeight - DroneVisualSize));
+        }
+
+        PositionChanged?.Invoke(this);
     }
 
     public void RestoreGps()
@@ -170,19 +189,22 @@ public class Quadcopter
                 return;
             }
 
+            var maxX = Math.Max(0, AreaWidth - DroneVisualSize);
+            var maxY = Math.Max(0, AreaHeight - DroneVisualSize);
+
             X += VelocityX;
             Y += VelocityY;
 
-            if (X <= 0 || X >= AreaWidth - 20)
+            if (X <= 0 || X >= maxX)
             {
                 VelocityX = -VelocityX;
-                X = Math.Clamp(X, 0, AreaWidth - 20);
+                X = Math.Clamp(X, 0, maxX);
             }
 
-            if (Y <= 0 || Y >= AreaHeight - 20)
+            if (Y <= 0 || Y >= maxY)
             {
                 VelocityY = -VelocityY;
-                Y = Math.Clamp(Y, 0, AreaHeight - 20);
+                Y = Math.Clamp(Y, 0, maxY);
             }
         }
 

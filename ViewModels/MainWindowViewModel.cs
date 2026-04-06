@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
@@ -11,9 +12,15 @@ namespace Task3.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private const double DefaultAreaWidth = 780;
+    private const double DefaultAreaHeight = 440;
+    private const double DroneVisualSize = 20;
     private readonly Random _random = new();
     private readonly DispatcherTimer _timer;
+    private readonly List<Quadcopter> _quadcopters = new();
     private int _droneCounter;
+    private double _areaWidth = DefaultAreaWidth;
+    private double _areaHeight = DefaultAreaHeight;
 
     public MainWindowViewModel()
     {
@@ -39,16 +46,35 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public RelayCommand AddDroneCommand { get; }
 
+    public void UpdateSimulationAreaSize(double width, double height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        _areaWidth = width;
+        _areaHeight = height;
+
+        foreach (var quadcopter in _quadcopters)
+        {
+            quadcopter.SetAreaSize(_areaWidth, _areaHeight);
+        }
+    }
+
     private void AddDrone()
     {
         _droneCounter++;
 
+        var maxInitialX = Math.Max(0, _areaWidth - DroneVisualSize);
+        var maxInitialY = Math.Max(0, _areaHeight - DroneVisualSize);
+
         var quadcopter = new Quadcopter(
             id: _droneCounter,
-            initialX: _random.Next(20, 760),
-            initialY: _random.Next(20, 420),
-            areaWidth: 780,
-            areaHeight: 440,
+            initialX: _random.NextDouble() * maxInitialX,
+            initialY: _random.NextDouble() * maxInitialY,
+            areaWidth: _areaWidth,
+            areaHeight: _areaHeight,
             random: _random);
 
         var @operator = new Operator();
@@ -57,6 +83,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var mechanic = CreateMechanicWithReflection();
         var droneVm = new DroneViewModel(quadcopter, @operator, mechanic);
 
+        _quadcopters.Add(quadcopter);
         Drones.Add(droneVm);
         droneVm.Start();
     }
