@@ -18,8 +18,6 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
     {
         AddDroneCommand = new RelayCommand(AddDrone);
-        StartAllCommand = new RelayCommand(StartAll);
-        StopAllCommand = new RelayCommand(StopAll);
 
         _timer = new DispatcherTimer
         {
@@ -41,10 +39,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public RelayCommand AddDroneCommand { get; }
 
-    public RelayCommand StartAllCommand { get; }
-
-    public RelayCommand StopAllCommand { get; }
-
     private void AddDrone()
     {
         _droneCounter++;
@@ -64,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var droneVm = new DroneViewModel(quadcopter, @operator, mechanic);
 
         Drones.Add(droneVm);
+        droneVm.Start();
     }
 
     private void StartAll()

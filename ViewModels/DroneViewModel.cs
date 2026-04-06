@@ -53,6 +53,11 @@ public partial class DroneViewModel : ViewModelBase
 
     public string Title => $"Дрон #{_quadcopter.Id}";
 
+    public void Start()
+    {
+        TurnOnController();
+    }
+
     public void TurnOnController()
     {
         SetEventText($"Оператор включил пульт для дрона #{_quadcopter.Id}.");
@@ -103,8 +108,8 @@ public partial class DroneViewModel : ViewModelBase
     {
         SetEventText($"{Title}: сел, ожидает механика.");
         await _mechanic.RepairAsync(_quadcopter, CancellationToken.None);
-        SetEventText($"{Title}: ремонт завершен, готов к запуску.");
-        SyncFromModel();
+        SetEventText($"{Title}: ремонт завершен, запускаем повторно.");
+        Start();
     }
 
     private void SetEventText(string text)

@@ -7,7 +7,7 @@ namespace Task3.Models;
 public class Quadcopter
 {
     private const int FlightTickDelayMs = 40;
-    private const double DefaultGpsFailureProbabilityPerSecond = 0.3;
+    private const double DefaultGpsFailureProbabilityPerSecond = 0.03;
     private readonly Random _random;
     private readonly object _sync = new();
     private CancellationTokenSource? _loopCts;
