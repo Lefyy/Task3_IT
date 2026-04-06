@@ -9,15 +9,23 @@ namespace Task3.ViewModels;
 
 public partial class DroneViewModel : ViewModelBase
 {
+    private static readonly TimeSpan EventDisplayDuration = TimeSpan.FromSeconds(2);
     private readonly Quadcopter _quadcopter;
     private readonly Operator _operator;
     private readonly IMechanic _mechanic;
+    private DateTime _lastEventAt = DateTime.MinValue;
 
     [ObservableProperty]
     private double _x;
 
     [ObservableProperty]
     private double _y;
+
+    [ObservableProperty]
+    private string _stateText = string.Empty;
+
+    [ObservableProperty]
+    private string _lastEventText = string.Empty;
 
     [ObservableProperty]
     private string _status = string.Empty;
@@ -37,7 +45,7 @@ public partial class DroneViewModel : ViewModelBase
 
         if (_mechanic is Mechanic concreteMechanic)
         {
-            concreteMechanic.RepairMessagePublished += message => Status = message;
+            concreteMechanic.RepairMessagePublished += message => SetEventText(message);
         }
 
         SyncFromModel();
@@ -47,7 +55,7 @@ public partial class DroneViewModel : ViewModelBase
 
     public void TurnOnController()
     {
-        Status = $"Оператор включил пульт для дрона #{_quadcopter.Id}.";
+        SetEventText($"Оператор включил пульт для дрона #{_quadcopter.Id}.");
         _operator.TurnOnController(_quadcopter);
         SyncFromModel();
     }
@@ -58,7 +66,7 @@ public partial class DroneViewModel : ViewModelBase
         X = snapshot.X;
         Y = snapshot.Y;
         Brush = snapshot.GpsEnabled ? Brushes.ForestGreen : Brushes.OrangeRed;
-        Status = snapshot.State switch
+        StateText = snapshot.State switch
         {
             DroneState.Flying => $"{Title}: полёт в норме",
             DroneState.Emergency => $"{Title}: авария, GPS отключен",
@@ -66,6 +74,11 @@ public partial class DroneViewModel : ViewModelBase
             DroneState.Repairing => $"{Title}: в ремонте",
             _ => $"{Title}: ожидание"
         };
+
+        var eventIsFresh = !string.IsNullOrWhiteSpace(LastEventText)
+                           && DateTime.UtcNow - _lastEventAt <= EventDisplayDuration;
+
+        Status = eventIsFresh ? LastEventText : StateText;
     }
 
     public void Stop()
@@ -78,19 +91,26 @@ public partial class DroneViewModel : ViewModelBase
     private void OnGpsDisabled(Quadcopter quadcopter)
     {
         Brush = Brushes.OrangeRed;
-        Status = $"{Title}: GPS отключился (вероятностное событие).";
+        SetEventText($"{Title}: GPS отключился (вероятностное событие).");
     }
 
     private void OnEmergencyLandingStarted(Quadcopter quadcopter)
     {
-        Status = $"{Title}: оператор инициировал аварийную посадку.";
+        SetEventText($"{Title}: оператор инициировал аварийную посадку.");
     }
 
     private async void OnLanded(Quadcopter quadcopter)
     {
-        Status = $"{Title}: сел, ожидает механика.";
+        SetEventText($"{Title}: сел, ожидает механика.");
         await _mechanic.RepairAsync(_quadcopter, CancellationToken.None);
-        Status = $"{Title}: ремонт завершен, готов к запуску.";
+        SetEventText($"{Title}: ремонт завершен, готов к запуску.");
         SyncFromModel();
+    }
+
+    private void SetEventText(string text)
+    {
+        LastEventText = text;
+        _lastEventAt = DateTime.UtcNow;
+        Status = text;
     }
 }
